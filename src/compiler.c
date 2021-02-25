@@ -235,9 +235,7 @@ static void parsePrecedence(Precedence precedence)
     }
 }
 
-static ParseRule* getRule(TokenType type) {
-    return &rules[type];
-}
+static ParseRule* getRule(TokenType type) { return &rules[type]; }
 
 bool compile(const char* source, Chunk* chunk)
 {

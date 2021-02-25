@@ -33,11 +33,11 @@ static InterpretResult run()
     (vm.chunk->constants                                                       \
          .values[(READ_BYTE() << 16) + (READ_BYTE() << 8) + (READ_BYTE())])
 
-#define BINARY_OP(op) \
-    do { \
-        double b = pop(); \
-        double a = pop(); \
-        push(a op b); \
+#define BINARY_OP(op)                                                          \
+    do {                                                                       \
+        double b = pop();                                                      \
+        double a = pop();                                                      \
+        push(a op b);                                                          \
     } while (false)
 
     for (;;) {
@@ -93,7 +93,7 @@ InterpretResult interpret(const char* source)
     }
 
     vm.chunk = &chunk;
-    vm.ip = vm.chunk->code;
+    vm.ip    = vm.chunk->code;
 
     InterpretResult result = run();
 

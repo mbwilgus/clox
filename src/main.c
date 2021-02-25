@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
 #include "chunk.h"
+#include "common.h"
 #include "debug.h"
 #include "vm.h"
 
 // TODO: let commandlines be arbitrarily long
-static void repl() {
+static void repl()
+{
     char line[1024];
     for (;;) {
         printf("> ");
@@ -22,7 +23,8 @@ static void repl() {
     }
 }
 
-static char* readFile(const char* path) {
+static char* readFile(const char* path)
+{
     FILE* file = fopen(path, "rb");
     if (file == NULL) {
         fprintf(stderr, "Could not open file \"%s\".\n", path);
@@ -51,16 +53,20 @@ static char* readFile(const char* path) {
     return buffer;
 }
 
-static void runFile(const char* path) {
-    char* source = readFile(path);
+static void runFile(const char* path)
+{
+    char* source           = readFile(path);
     InterpretResult result = interpret(source);
     free(source);
 
-    if (result == INTERPRET_COMPILE_ERROR) exit(65);
-    if (result == INTERPRET_RUNTIME_ERROR) exit(70);
+    if (result == INTERPRET_COMPILE_ERROR)
+        exit(65);
+    if (result == INTERPRET_RUNTIME_ERROR)
+        exit(70);
 }
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char* argv[])
+{
     initVM();
 
     if (argc == 1) {

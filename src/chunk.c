@@ -34,7 +34,7 @@ static void setLine(Chunk* chunk, int line)
         lines->runs[cursor]++;
     } else {
         if (lines->capacity > 0) {
-            cursor +=2;
+            cursor += 2;
             current = cursor + 1;
             lines->index += 2;
         }
@@ -101,7 +101,8 @@ int getLine(Chunk* chunk, int offset)
     int cursor      = 0;
     while (accumulator < offset) {
         accumulator += chunk->lines.runs[cursor];
-        if (accumulator <= offset) cursor += 2;
+        if (accumulator <= offset)
+            cursor += 2;
     }
 
     return chunk->lines.runs[cursor + 1];
