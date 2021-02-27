@@ -87,8 +87,6 @@ void writeConstant(Chunk* chunk, Value value, int line)
     }
 }
 
-// consider making static
-// I don't think I need this anymore
 int addConstant(Chunk* chunk, Value value)
 {
     writeValueArray(&chunk->constants, value);
