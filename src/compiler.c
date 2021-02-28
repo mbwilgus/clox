@@ -119,13 +119,12 @@ static bool match(TokenType type)
     return true;
 }
 
-// TODO: needs to take an int because of long constant operations
-static void emitByte(uint8_t byte)
+static void emitByte(int byte)
 {
     writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-static void emitBytes(uint8_t byte1, uint8_t byte2)
+static void emitBytes(uint8_t byte1, int byte2)
 {
     emitByte(byte1);
     emitByte(byte2);
