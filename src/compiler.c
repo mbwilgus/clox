@@ -45,7 +45,12 @@ typedef struct {
     int depth;
 } Local;
 
+typedef enum { TYPE_FUNCTION, TYPE_SCRIPT } FunctionType;
+
 typedef struct {
+    ObjFunction* function;
+    FunctionType type;
+
     Local locals[UINT8_COUNT];
     int localCount;
     int scopeDepth;
@@ -55,9 +60,7 @@ Parser parser;
 
 Compiler* current = NULL;
 
-Chunk* compilingChunk;
-
-static Chunk* currentChunk() { return compilingChunk; }
+static Chunk* currentChunk() { return &current->function->chunk; }
 
 static void errorAt(Token* token, const char* message)
 {
@@ -135,7 +138,8 @@ static void emitLoop(int loopStart)
     emitByte(OP_LOOP);
 
     int offset = currentChunk()->count - loopStart + 2;
-    if (offset > UINT16_MAX) error("Loop body too large.");
+    if (offset > UINT16_MAX)
+        error("Loop body too large.");
 
     emitByte((offset >> 8) & 0xff);
     emitByte(offset & 0xff);
@@ -165,25 +169,39 @@ static void patchJump(int offset)
         error("Too much code to jump over.");
     }
 
-    currentChunk()->code[offset] = (jump >> 8) & 0xff;
+    currentChunk()->code[offset]     = (jump >> 8) & 0xff;
     currentChunk()->code[offset + 1] = jump & 0xff;
 }
 
-static void initCompiler(Compiler* compiler)
+static void initCompiler(Compiler* compiler, FunctionType type)
 {
+    compiler->function   = NULL;
+    compiler->type       = type;
     compiler->localCount = 0;
     compiler->scopeDepth = 0;
+    compiler->function   = newFunction();
     current              = compiler;
+
+    Local* local       = &current->locals[current->localCount++];
+    local->depth       = 0;
+    local->name.start  = "";
+    local->name.length = 0;
 }
 
-static void endCompiler()
+static ObjFunction* endCompiler()
 {
     emitReturn();
+    ObjFunction* function = current->function;
+
 #ifdef DEBUG_PRINT_CODE
     if (!parser.hadError) {
-        disassembleChunk(currentChunk(), "code");
+        disassembleChunk(currentChunk(), function->name != NULL
+                                             ? function->name->chars
+                                             : "<script>");
     }
 #endif
+
+    return function;
 }
 
 static void beginScope() { current->scopeDepth++; }
@@ -356,7 +374,7 @@ static void number(bool canAssign)
 static void or_(bool canAssign)
 {
     int elseJump = emitJump(OP_JUMP_IF_FALSE);
-    int endJump = emitJump(OP_JUMP);
+    int endJump  = emitJump(OP_JUMP);
 
     patchJump(elseJump);
     emitByte(OP_POP);
@@ -558,7 +576,8 @@ static void ifStatement()
     patchJump(thenJump);
     emitByte(OP_POP);
 
-    if (match(TOKEN_ELSE)) statement();
+    if (match(TOKEN_ELSE))
+        statement();
     patchJump(elseJump);
 }
 
@@ -631,7 +650,7 @@ static void statement()
 {
     if (match(TOKEN_PRINT)) {
         printStatement();
-    }else if (match(TOKEN_FOR)) {
+    } else if (match(TOKEN_FOR)) {
         forStatement();
     } else if (match(TOKEN_IF)) {
         ifStatement();
@@ -671,12 +690,11 @@ static void parsePrecedence(Precedence precedence)
 
 static ParseRule* getRule(TokenType type) { return &rules[type]; }
 
-bool compile(const char* source, Chunk* chunk)
+ObjFunction* compile(const char* source)
 {
     initScanner(source);
     Compiler compiler;
-    initCompiler(&compiler);
-    compilingChunk = chunk;
+    initCompiler(&compiler, TYPE_SCRIPT);
 
     parser.hadError  = false;
     parser.panicMode = false;
@@ -687,6 +705,6 @@ bool compile(const char* source, Chunk* chunk)
         declaration();
     }
 
-    endCompiler();
-    return !parser.hadError;
+    ObjFunction* function = endCompiler();
+    return parser.hadError ? NULL : function;
 }
