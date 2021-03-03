@@ -20,8 +20,8 @@ static Value clockNative(int argCount, Value* args)
 
 static void resetStack()
 {
-    vm.stackTop   = vm.stack;
-    vm.frameCount = 0;
+    vm.stackTop     = vm.stack;
+    vm.frameCount   = 0;
     vm.openUpvalues = NULL;
 }
 
@@ -62,13 +62,13 @@ static void defineNative(const char* name, NativeFn function)
 void initVM()
 {
     resetStack();
-    vm.objects = NULL;
+    vm.objects        = NULL;
     vm.bytesAllocated = 0;
-    vm.nextGC = 1024 * 1024;
+    vm.nextGC         = 1024 * 1024;
 
-    vm.grayCount = 0;
+    vm.grayCount    = 0;
     vm.grayCapacity = 0;
-    vm.grayStack = NULL;
+    vm.grayStack    = NULL;
 
     initTable(&vm.globals);
     initTable(&vm.strings);
@@ -122,6 +122,12 @@ static bool callValue(Value callee, int argCount)
 {
     if (IS_OBJ(callee)) {
         switch (OBJ_TYPE(callee)) {
+        case OBJ_CLASS: {
+            ObjClass* klass            = AS_CLASS(callee);
+            vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+            return true;
+        }
+
         case OBJ_CLOSURE: return call(AS_CLOSURE(callee), argCount);
 
         case OBJ_NATIVE: {
@@ -145,11 +151,11 @@ static bool callValue(Value callee, int argCount)
 static ObjUpvalue* captureUpvalue(Value* local)
 {
     ObjUpvalue* prevUpvalue = NULL;
-    ObjUpvalue* upvalue = vm.openUpvalues;
+    ObjUpvalue* upvalue     = vm.openUpvalues;
 
     while (upvalue != NULL && upvalue->location > local) {
         prevUpvalue = upvalue;
-        upvalue = upvalue->next;
+        upvalue     = upvalue->next;
     }
 
     if (upvalue != NULL && upvalue->location == local) {
@@ -170,9 +176,9 @@ static void closeUpvalues(Value* last)
 {
     while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
         ObjUpvalue* upvalue = vm.openUpvalues;
-        upvalue->closed = *upvalue->location;
-        upvalue->location = &upvalue->closed;
-        vm.openUpvalues = upvalue->next;
+        upvalue->closed     = *upvalue->location;
+        upvalue->location   = &upvalue->closed;
+        vm.openUpvalues     = upvalue->next;
     }
 }
 
@@ -334,6 +340,41 @@ static InterpretResult run()
             break;
         }
 
+        case OP_GET_PROPERTY: {
+            if (!IS_INSTANCE(peek(0))) {
+                runtimeError("Only instances have properties.");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            ObjInstance* instance = AS_INSTANCE(peek(0));
+            ObjString* name       = READ_STRING(READ_CONSTANT);
+
+            Value value;
+            if (tableGet(&instance->fields, name, &value)) {
+                pop(); // instance
+                push(value);
+                break;
+            }
+
+            runtimeError("Undefined property '%s'.", name->chars);
+            return INTERPRET_RUNTIME_ERROR;
+        }
+
+        case OP_SET_PROPERTY: {
+            if (!IS_INSTANCE(peek(1))) {
+                runtimeError("Only instances have fields.");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            ObjInstance* instance = AS_INSTANCE(peek(1));
+            tableSet(&instance->fields, READ_STRING(READ_CONSTANT), peek(0));
+
+            Value value = pop();
+            pop();
+            push(value);
+            break;
+        }
+
         case OP_EQUAL: {
             Value b = pop();
             Value a = pop();
@@ -419,9 +460,9 @@ static InterpretResult run()
         }
 
         case OP_CLOSE_UPVALUE:
-                         closeUpvalues(vm.stackTop - 1);
-                         pop();
-                         break;
+            closeUpvalues(vm.stackTop - 1);
+            pop();
+            break;
 
         case OP_RETURN: {
             Value result = pop();
@@ -440,6 +481,10 @@ static InterpretResult run()
             frame = &vm.frames[vm.frameCount - 1];
             break;
         }
+
+        case OP_CLASS:
+            push(OBJ_VAL(newClass(READ_STRING(READ_CONSTANT))));
+            break;
         }
     }
 
