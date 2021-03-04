@@ -1,4 +1,3 @@
 build/
 craftinginterpreters/
-src/fib.lox
-src/test.lox
+*.lox
